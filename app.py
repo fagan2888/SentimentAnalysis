@@ -14,8 +14,8 @@ from dash.dependencies import Input, Output
 
 #-#-#-#-# MAIN BEFORE UI #-#-#-#-#
 # ------ Graph Logic ------
-logic = GraphLogic()
-logic.load_w2v("Word2vec/word2vec_twitter")
+logic = GraphLogic(path = "Word2vec/word2vec_twitter")
+logic.load_w2v()
 
 word_vectors = logic.create_word_vectors(100)
 word_vocab = logic.create_word_vocab(100)
@@ -23,8 +23,9 @@ word_vocab = logic.create_word_vocab(100)
 logic.create_tsne()
 x_w2v, y_w2v, z_w2v = logic.get_dimensions()
 
-# ----- Import and clean CSV -----
-data_logic = DataLogic()
+# ------ Data Logic ------
+data_logic = DataLogic(train_ds = "Datasets/sentiment_analysis_train.csv",
+                       test_ds = "Datasets/sentiment_analysis_test.csv")
 
 X_test, Y_test, test_df = data_logic.text_preproc()
 dropdown_options = data_logic.get_dropdown()
@@ -32,18 +33,24 @@ dropdown_options = data_logic.get_dropdown()
 # -------- LOAD MACHINE LEARNING MODEL ---------
 model = Model(load = True, model_name = "TrainedModelGloVe")
 
-
+# -------- Make Prediction --------
 predictions = model.make_prediction(X_test)
 aciertos = 0
 for i in range(0, len(predictions)):    
     if np.argmax(predictions[i]) == (Y_test[i] // 4):
         aciertos += 1
 
+# ------- Get positive and negative values --------
+pos_p, neg_p = data_logic.count_pos_neg([np.argmax(predictions[i]) for i in range(0, len(predictions))])
+pos_r, neg_r = data_logic.count_pos_neg(Y_test // 4)
+
+print("================================================================================")
+print("------------------------- ESTADÍSTICAS DE LA RED -------------------------------")
+print("--------------------------------------------------------------------------------")
 print("Aciertos: ", aciertos, " sobre ", len(predictions), " Porcentaje: ", aciertos / len(predictions))
-"""
-import sys
-sys.exit("")
-""" 
+print("--------------------------------------------------------------------------------")
+print("Positivos P: ", pos_p, "| Negativos P: ", neg_p, "Positivos R: ", pos_r, "| Negativos R: ", neg_r)
+print("================================================================================")
 
 # # # # # # # # # # # # # 
 # # # # UI CODE # # # # #
@@ -77,6 +84,12 @@ text_style_h4 ={
             'color': '#4D637F',
             'font-family': 'Dosis'}
 
+text_style_h5 = {
+            'color': colors['text'],
+            'font-size': '2.2rem',
+            'color': '#4D637F',
+            'font-family': 'Dosis'}
+
 # # # # LAYOUT # # # # #
 # # # # # # # # # # # # #
 app.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
@@ -90,7 +103,7 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
             'color': colors['text'],
             'font-size': '4.0rem',
             'color': '#4D637F',
-            'font-family': 'Dosis',}
+            'font-family': 'Dosis'}
     ),
 
     html.Hr([], style={'marginLeft': 600, 'marginRight': 600}),
@@ -130,10 +143,10 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
     html.Div([
         html.H4(["Representación vectorial"], style=text_style_h4),
         html.P(["Representación vectorial de las palabras del dataset usando word2vec." +
-                "La dimensión de los vectores se ha reducido usando la técnica t-SNE."],
+                " La dimensión de los vectores se ha reducido usando la técnica t-SNE."],
                style=text_style_p),
 
-        html.H5("Word2vec 3D"),
+        html.H5(["Word2vec 3D"], style = text_style_h5),
 
         dcc.Graph(
             figure={
@@ -150,14 +163,18 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
                             'line': {'width': 0.5, 'color': 'white'}
                         } # marker
                     ) # go.Scatter
-                ] # data
+                ], # data
+                "layout":{
+                    "paper_bgcolor": "rgb(240, 240, 240)",
+                    "plot_bgcolor":'rgb(240, 240, 240)'
+                }
             }, # figure
         ), # graph
 
         html.Br(),
         html.Br(),
 
-        html.H5("Word2vec 2D"),
+        html.H5(["Word2vec 2D"], style = text_style_h5),
 
         #-#-#-#-#-# WORD2VEC 2D #-#-#-#-#-# 
         dcc.Graph(
@@ -174,14 +191,76 @@ app.layout = html.Div(style={'backgroundColor': colors['background']}, children=
                             'line': {'width': 0.5, 'color': 'white'}
                         } # marker
                     ) # go.Scatter
-                ] # data
+                ], # data
+                "layout":{
+                    "paper_bgcolor": "rgb(240, 240, 240)",
+                    "plot_bgcolor":'rgb(240, 240, 240)'
+                }
             } # figure
         ), # graph
-
-        html.Br(),
-        html.Br()
         
     ], style={'marginLeft': 600, 'marginRight': 600, 'marginBottom': 100}),
+
+    html.Hr([], style={'marginLeft': 600, 'marginRight': 600}),
+
+    #-#-#-#-#-# POSITIVE NEGATIVE GRAPH #-#-#-#-#-# 
+    html.Div([
+        html.H4(["Gráfico con el porcentaje de clases"], style=text_style_h4),
+        html.P(["Dos gráficos que incluyen los porcentajes de postivo y negativo predichos y" +
+                " los porcentajes reales."],
+               style=text_style_p),
+        
+        dcc.Graph(
+            figure = {
+                'data': [
+                    # Data from predictions
+                    {
+                        "values": [pos_p, neg_p],
+                        "labels": ["Positivo", "Negativo"],
+                        "domain": {"column": 0},
+                        "hole": .4,
+                        "type": "pie",
+                        'marker': {'colors': ['rgb(19, 102, 30)',
+                                              'rgb(188, 0, 0)']}
+                    },
+                    # Data from real values
+                    {
+                        "values": [pos_r, neg_r],
+                        "labels": ["Positivo", "Negativo"],
+                        "domain": {"column": 1},
+                        "hole": .4,
+                        "type": "pie",
+                        'marker': {'colors': ['rgb(19, 102, 30)',
+                                              'rgb(188, 0, 0)']}                  
+                    }
+                ], # data
+                "layout":{
+                    "title": "Predicciones vs Realidad",
+                    "grid": {"rows": 1, "columns": 2},
+                    "showlegend": False,
+                    "paper_bgcolor": "rgb(0, 0, 0, 0)",
+                    "annotations": [
+                        {
+                            "showarrow": False,
+                            "text": "Predicciones",
+                            "x": 0.16,
+                            "y": 0.5
+                        },
+                        {
+                            "showarrow": False,
+                            "text": "Real",
+                            "x": 0.8,
+                            "y": 0.5
+                        }
+                    ]
+                }
+            }
+        ),
+        
+        html.Br(),
+        html.Br(),
+        
+    ], style={'marginLeft': 600, 'marginRight': 600, 'marginBottom': 100}),     
 
     #-#-#-#-#-# FOOTER #-#-#-#-#-#
     html.Div([

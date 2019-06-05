@@ -44,12 +44,12 @@ class DataPreprocessing:
             sequences
 
         Attributes:
-            - sequences: Dataset to transform.
+            - sequences(numpy array): Dataset to transform.
             e.g: sequences = my_df["my_column"]
 
-            - max_len: max length for padding.
+            - max_len(int): max length for padding.
 
-            - alt_sequences: Feed the tokenizer with
+            - alt_sequences(numpy array): Feed the tokenizer with
             the data of another dataset.
         """
         if alt_sequences is None:
@@ -65,6 +65,10 @@ class DataPreprocessing:
             return pad_sequences(tokenized_seq, maxlen = max_len)
 
     def tok_and_pad(self, sequences, max_len):
+        """
+        Description:
+            - Auxiliar method of tokenize_and_pad_data.
+        """
         self.tokenizer = Tokenizer(lower = True, filters='')
         self.tokenizer.fit_on_texts(sequences.values)
 

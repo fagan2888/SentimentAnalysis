@@ -6,8 +6,18 @@ from gensim.models import Word2Vec
 from TextPreprocessing import DataPreprocessing
 
 class DataLogic:
-    def __init__(self):
-        pass
+    """
+    Description:
+        Handles all necessary operations for app.py to work. It does that
+        by calling all necessary classes.
+        
+    Attributes:
+        - train_ds(String): path to train dataset.
+        - test_ds(String): path to test dataset
+    """
+    def __init__(self, train_ds, test_ds):
+        self.train_ds = train_ds
+        self.test_ds = test_ds
 
     def text_preproc(self):
         """
@@ -16,11 +26,11 @@ class DataLogic:
             tokenizing the tweets.
             
         """
-        test_df = pd.read_csv("Datasets/sentiment_analysis_test.csv",
+        test_df = pd.read_csv(self.test_ds,
                                names = ["Polarity", "Id", "Date", "Query", "User", "Tweet"],
                                encoding = "ISO-8859-1")
 
-        train_df = pd.read_csv("Datasets/sentiment_analysis_train.csv",
+        train_df = pd.read_csv(self.train_ds,
                                names = ["Polarity", "Id", "Date", "Query", "User", "Tweet"],
                                encoding = "ISO-8859-1")
 
@@ -28,10 +38,10 @@ class DataLogic:
         train_df = train_df[["Polarity", "Tweet"]]
 
         # Select Columns
-        test_df = test_df[["Polarity", "Tweet"]] # 0: negative; 4: positive
-        train_df = train_df[["Polarity", "Tweet"]] # 0: negative; 4: positive
+        test_df = test_df[["Polarity", "Tweet"]]
+        train_df = train_df[["Polarity", "Tweet"]]
 
-        # Drop Neutral Values
+        # Drop Neutral Values (0: negative; 4: positive)
         test_df = test_df[test_df.Polarity != 2]
 
         # Create Dropdown list
@@ -58,19 +68,42 @@ class DataLogic:
         """
         return self.dropdown_options
 
-class GraphLogic:
-    def __init__(self):
-        pass
+    def count_pos_neg(self, Y):
+        """
+        Description:
+            Returns the number of positives and negatives
+            of Y.
+            
+        Args:
+            - Y(numpy array or list): polarity values
+        """
+        pos, neg = 0, 0
 
-    def load_w2v(self, path):
+        for i in Y:
+            if i == 0:
+                neg += 1
+            else:
+                pos += 1
+
+        return pos, neg
+
+class GraphLogic:
+    """
+    Description:
+        Handles all neccesary operations for the Graph in app.py to work.
+
+    Attributes:
+        - path(String): path to word2vec model. 
+    """
+    def __init__(self, path):
+        self.path = path
+
+    def load_w2v(self):
         """
         Description:
             Load word2vec model from path
-
-        Args:
-            - path: path of the model.
         """
-        self.w2v = Word2Vec.load(path)
+        self.w2v = Word2Vec.load(self.path)
 
     def create_word_vectors(self, number_words):
         """
@@ -79,7 +112,7 @@ class GraphLogic:
             number_words.
 
         Args:
-            - number_words: number of words to extract from the
+            - number_words(int): number of words to extract from the
             vocabulary of word2vec model.
         """
         self.word_vectors = [self.w2v[word] for word in self.w2v.wv.vocab]
@@ -94,7 +127,7 @@ class GraphLogic:
             number_words.
 
         Args:
-            - number_words: number of words to extract from the
+            - number_words(int): number of words to extract from the
             vocabulary of word2vec model.        
         """
         self.word_vocab = list(self.w2v.wv.vocab)[:number_words]
